@@ -34,15 +34,15 @@ Whether it's a star, a professional connection, or a coffee, every gesture helps
 
 ## 🗺️ Where this fits in the family
 
-This module sits downstream of several identity building-block modules — it consumes object IDs from `tf-mod-azuread-named-location` (locations), `tf-mod-azuread-auth-strength-policy` (grant controls), and user/group/application/service-principal modules (conditions targeting) as caller-supplied inputs. It has no downstream `tf-mod-azuread-*` consumer of its own; per SCOPE.md its outputs feed compliance reporting, sign-in log correlation, and coverage audits instead.
+This module sits downstream of several identity building-block modules — it consumes object IDs from `terraform-azuread-named-location` (locations), `terraform-azuread-auth-strength-policy` (grant controls), and user/group/application/service-principal modules (conditions targeting) as caller-supplied inputs. It has no downstream `terraform-azuread-*` consumer of its own; per SCOPE.md its outputs feed compliance reporting, sign-in log correlation, and coverage audits instead.
 
 ```mermaid
 flowchart LR
- NL["tf-mod-azuread-named-location"]
- ASP["tf-mod-azuread-auth-strength-policy"]
- USR["tf-mod-azuread-user / tf-mod-azuread-group"]
- APP["tf-mod-azuread-application / tf-mod-azuread-service-principal"]
- THIS["tf-mod-azuread-conditional-access-policy<br/>(THIS MODULE)"]
+ NL["terraform-azuread-named-location"]
+ ASP["terraform-azuread-auth-strength-policy"]
+ USR["terraform-azuread-user / terraform-azuread-group"]
+ APP["terraform-azuread-application / terraform-azuread-service-principal"]
+ THIS["terraform-azuread-conditional-access-policy<br/>(THIS MODULE)"]
  CONSUMERS["Sign-in logs · Compliance reporting · Coverage audits"]
 
  NL -->|"object_id => conditions.locations"| THIS
@@ -54,7 +54,7 @@ flowchart LR
  style THIS fill:#8957E5,color:#fff
 ```
 
-This module **consumes** object IDs from `tf-mod-azuread-named-location`, `tf-mod-azuread-auth-strength-policy`, and user/group/application/service-principal modules; it **emits** `object_id`/`id`/`state` for audit and compliance tooling — see the Typical wiring section below (no other `tf-mod-azuread-*` module consumes this policy's outputs).
+This module **consumes** object IDs from `terraform-azuread-named-location`, `terraform-azuread-auth-strength-policy`, and user/group/application/service-principal modules; it **emits** `object_id`/`id`/`state` for audit and compliance tooling — see the Typical wiring section below (no other `terraform-azuread-*` module consumes this policy's outputs).
 
 ---
 
@@ -64,7 +64,7 @@ A single resource with a deeply-nested `conditions` block and two independently-
 
 ```mermaid
 flowchart TD
- subgraph mod["tf-mod-azuread-conditional-access-policy"]
+ subgraph mod["terraform-azuread-conditional-access-policy"]
  THIS["azuread_conditional_access_policy.this<br/>(keystone)<br/>state + conditions"]
  COND["conditions { }<br/>applications · users · client_applications ·<br/>devices · locations · platforms"]
  GRANT["dynamic grant_controls<br/>(when var.grant_controls != null)"]
@@ -83,7 +83,7 @@ flowchart TD
 ## 📁 Module Structure
 
 ```
-tf-mod-azuread-conditional-access-policy/
+terraform-azuread-conditional-access-policy/
 ├── providers.tf # azuread provider requirement (>= 2.0, < 4.0); no provider block
 ├── variables.tf # display_name, state, conditions, exclude_object_ids, grant_controls, session_controls, timeouts
 ├── main.tf # single azuread_conditional_access_policy.this — total dynamic renderer
@@ -100,7 +100,7 @@ Smallest call that creates a real, enforceable policy — require MFA for all us
 
 ```hcl
 module "ca_require_mfa" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA001-AllUsers-Require-MFA"
   state        = "enabledForReportingButNotEnforced" # Report-only first; flip to "enabled" after review
@@ -158,11 +158,11 @@ Common **inbound** wiring (object IDs this policy consumes):
 
 | Upstream module output | Wired into |
 |---|---|
-| `tf-mod-azuread-group.object_id` | `conditions.users.included_groups` / `excluded_groups`, and break-glass `exclude_object_ids` |
-| `tf-mod-azuread-named-location.object_id` | `conditions.locations.included_locations` / `excluded_locations` |
-| `tf-mod-azuread-service-principal.object_id` | `conditions.client_applications.included_service_principals` / `excluded_service_principals` |
-| `tf-mod-azuread-application.client_id` | `conditions.applications.included_applications` / `excluded_applications` |
-| `tf-mod-azuread-auth-strength-policy` policy ID | `grant_controls.authentication_strength_policy_id` |
+| `terraform-azuread-group.object_id` | `conditions.users.included_groups` / `excluded_groups`, and break-glass `exclude_object_ids` |
+| `terraform-azuread-named-location.object_id` | `conditions.locations.included_locations` / `excluded_locations` |
+| `terraform-azuread-service-principal.object_id` | `conditions.client_applications.included_service_principals` / `excluded_service_principals` |
+| `terraform-azuread-application.client_id` | `conditions.applications.included_applications` / `excluded_applications` |
+| `terraform-azuread-auth-strength-policy` policy ID | `grant_controls.authentication_strength_policy_id` |
 
 ---
 
@@ -176,7 +176,7 @@ Common **inbound** wiring (object IDs this policy consumes):
 - **🪪 Workload identities are separate.** Conditional Access scoped to *users* does not block service principals. Use `conditions.client_applications` (Workload Identities Premium) to target service principals.
 - **💳 Licensing gates.** Sign-in frequency and persistent browser session controls require **Entra ID P1**; risk-based conditions (`sign_in_risk_levels` / `user_risk_levels`) require **P2 / Identity Protection**; `service_principal_risk_levels` requires **Workload Identities Premium**.
 - **🧱 Immutable removal of `devices`.** A `conditions.devices` block can be *added* to an existing policy, but *removing* a previously-set `devices` block forces resource recreation (provider behavior — labeled `# IMMUTABLE removal` in `variables.tf`).
-- **📍 Named locations must exist first.** `conditions.locations` references named-location object IDs; create the `tf-mod-azuread-named-location` resources before this policy.
+- **📍 Named locations must exist first.** `conditions.locations` references named-location object IDs; create the `terraform-azuread-named-location` resources before this policy.
 
 ---
 
@@ -187,7 +187,7 @@ Common **inbound** wiring (object IDs this policy consumes):
 
 ```hcl
 module "ca_min" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA001-AllUsers-Require-MFA"
 
@@ -210,7 +210,7 @@ module "ca_min" {
 
 ```hcl
 module "ca_breakglass" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA010-AllUsers-Require-MFA-BreakGlass"
   state        = "enabled"
@@ -243,7 +243,7 @@ module "ca_breakglass" {
 
 ```hcl
 module "ca_block_legacy" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA002-BlockLegacyAuth"
   state              = "enabled"
@@ -268,7 +268,7 @@ module "ca_block_legacy" {
 
 ```hcl
 module "ca_device" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA003-RequireCompliantDevice"
   exclude_object_ids = [var.break_glass_user_object_id]
@@ -293,7 +293,7 @@ module "ca_device" {
 
 ```hcl
 module "ca_risk" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA004-SignInRisk-Require-MFA"
   exclude_object_ids = [var.break_glass_user_object_id]
@@ -318,7 +318,7 @@ module "ca_risk" {
 
 ```hcl
 module "ca_location" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA005-Block-Untrusted-Locations"
   exclude_object_ids = [var.break_glass_user_object_id]
@@ -329,7 +329,7 @@ module "ca_location" {
     users            = { included_users = ["All"] }
     locations = {
       included_locations = ["All"]
-      excluded_locations = [module.trusted_hq.object_id] # tf-mod-azuread-named-location output
+      excluded_locations = [module.trusted_hq.object_id] # terraform-azuread-named-location output
     }
   }
 
@@ -346,7 +346,7 @@ module "ca_location" {
 
 ```hcl
 module "ca_session" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA006-AdminPortals-SignInFrequency"
   exclude_object_ids = [var.break_glass_user_object_id]
@@ -373,7 +373,7 @@ module "ca_session" {
 
 ```hcl
 module "ca_guests" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA007-Guests-Require-MFA"
   state        = "enabled"
@@ -405,7 +405,7 @@ module "ca_guests" {
 
 ```hcl
 module "ca_workload" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA008-WorkloadIdentity-Block-Risk"
   state        = "enabled"
@@ -434,7 +434,7 @@ module "ca_workload" {
 
 ```hcl
 module "ca_authstrength" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA009-Admins-PhishResistant-MFA"
   state              = "enabled"
@@ -448,7 +448,7 @@ module "ca_authstrength" {
 
   grant_controls = {
     operator                          = "AND"
-    authentication_strength_policy_id = module.phish_resistant.id # tf-mod-azuread-auth-strength-policy
+    authentication_strength_policy_id = module.phish_resistant.id # terraform-azuread-auth-strength-policy
     terms_of_use                      = ["66666666-6666-6666-6666-666666666666"]
   }
 }
@@ -460,7 +460,7 @@ module "ca_authstrength" {
 
 ```hcl
 module "ca_device_filter" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA011-Block-NonSAW-Admin"
   exclude_object_ids = [var.break_glass_user_object_id]
@@ -492,7 +492,7 @@ module "ca_device_filter" {
 
 ```hcl
 module "ca_mcas" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name       = "CA012-Block-Downloads-Unmanaged"
   exclude_object_ids = [var.break_glass_user_object_id]
@@ -516,7 +516,7 @@ module "ca_mcas" {
 
 ```hcl
 module "ca_admin_baseline" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA100-Admins-Require-MFA-CompliantDevice"
   state        = "enabledForReportingButNotEnforced" # validate in Report-only, then promote
@@ -553,7 +553,7 @@ module "ca_admin_baseline" {
 
 ```hcl
 module "ca_hardened" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA200-AllUsers-Hardened"
   state        = "enabledForReportingButNotEnforced"
@@ -600,18 +600,18 @@ module "ca_hardened" {
 
 ```hcl
 module "trusted_hq" {
-  source       = "git::https://github.com/microsoftexpert/tf-mod-azuread-named-location?ref=v1.0.0"
+  source       = "git::https://github.com/microsoftexpert/terraform-azuread-named-location?ref=v1.0.0"
   display_name = "-HQ-Trusted-IPs"
   #... ip ranges...
 }
 
 module "break_glass_group" {
-  source       = "git::https://github.com/microsoftexpert/tf-mod-azuread-group?ref=v1.0.0"
+  source       = "git::https://github.com/microsoftexpert/terraform-azuread-group?ref=v1.0.0"
   display_name = "SEC-BreakGlass-Accounts"
 }
 
 module "ca_location_gated" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-azuread-conditional-access-policy?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-azuread-conditional-access-policy?ref=v1.0.0"
 
   display_name = "CA300-MFA-Outside-HQ"
 
@@ -773,7 +773,7 @@ session_controls = object({
 ## 🚀 Runbook
 
 ```powershell
-cd C:\GitHubCode\newazureadmodules\tf-mod-azuread-conditional-access-policy
+cd C:\GitHubCode\newazureadmodules\terraform-azuread-conditional-access-policy
 terraform init -backend=false
 terraform validate
 terraform fmt -check

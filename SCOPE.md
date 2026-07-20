@@ -1,4 +1,4 @@
-# SCOPE — tf-mod-azuread-conditional-access-policy
+# SCOPE — terraform-azuread-conditional-access-policy
 
 ## In scope
 - `azuread_conditional_access_policy.this`
@@ -6,8 +6,8 @@
 ## Data sources used
 - None. (Earlier design notes referenced `data.azuread_named_location`, `data.azuread_service_principal`,
   and `data.azuread_group` lookups, but this module consumes object IDs passed in by the caller — the
-  resolving data sources, if any, live in the upstream `tf-mod-azuread-named-location`,
-  `tf-mod-azuread-service-principal`, and `tf-mod-azuread-group` modules. Keeping the boundary at "IDs in"
+  resolving data sources, if any, live in the upstream `terraform-azuread-named-location`,
+  `terraform-azuread-service-principal`, and `terraform-azuread-group` modules. Keeping the boundary at "IDs in"
   avoids duplicate lookups and keeps this module a pure single-resource wrapper.)
 
 ## Graph API permissions required
